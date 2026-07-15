@@ -33,6 +33,18 @@ export const pastelMapStyle: StyleSpecification = {
       type: "vector",
       url: "https://tiles.openfreemap.org/planet",
     },
+    // Raster fallback that always paints something visible — even if the
+    // vector tiles are slow or blocked. Slightly desaturated via raster-saturation
+    // to read as on-brand pastel.
+    "osm-fallback": {
+      type: "raster",
+      tiles: [
+        "https://a.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png",
+        "https://b.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png",
+      ],
+      tileSize: 256,
+      attribution: "© OpenStreetMap France (CC-BY-SA)",
+    },
   },
   layers: [
     {
@@ -193,6 +205,17 @@ export const pastelMapStyle: StyleSpecification = {
       "source-layer": "building",
       minzoom: 12,
       paint: { "fill-color": BUILDING, "fill-opacity": 0.6 },
+    },
+    {
+      id: "osm-fallback",
+      type: "raster",
+      source: "osm-fallback",
+      paint: {
+        "raster-opacity": 0.45,
+        "raster-saturation": -0.6,
+        "raster-contrast": -0.15,
+      },
+      layout: { visibility: "visible" },
     },
     {
       id: "country-label",

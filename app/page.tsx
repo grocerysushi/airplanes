@@ -9,6 +9,7 @@ import AircraftDetailPanel from "@/components/aircraft/AircraftDetailPanel";
 import MapControls from "@/components/map/MapControls";
 import HoverTooltip from "@/components/aircraft/HoverTooltip";
 import ErrorToast from "@/components/ui/Toast";
+import ErrorBoundary from "@/components/ui/ErrorBoundary";
 import { useFavorites } from "@/lib/use-favorites";
 import { usePersistedSettings } from "@/lib/use-settings";
 import { clampBbox, pointInBbox } from "@/lib/geo";
@@ -236,31 +237,39 @@ export default function Page() {
 
   return (
     <main className="relative w-screen h-screen overflow-hidden">
-      <FlightMap
-        aircraft={visibleMap}
-        statuses={statuses}
-        selectedHex={selectedHex}
-        hoveredHex={hoveredHex}
-        coloring={coloring}
-        filters={filters}
-        onSelect={(h) => {
-          onSelect(h);
-          if (h) setFollowingHex(h);
-        }}
-        onHover={onHover}
-        onMoveEnd={(b) => {
-          const next = clampBbox(b);
-          setBbox((cur) =>
-            cur.minLat === next.minLat &&
-            cur.maxLat === next.maxLat &&
-            cur.minLon === next.minLon &&
-            cur.maxLon === next.maxLon
-              ? cur
-              : next,
-          );
-        }}
-        followHex={following ? followingHex : null}
-      />
+      <ErrorBoundary
+        fallback={(err) => (
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 surface-card px-5 py-4 text-sm text-danger max-w-[80vw] z-50">
+            Map failed to load: {err.message || "unknown error"}. Please refresh.
+          </div>
+        )}
+      >
+        <FlightMap
+          aircraft={visibleMap}
+          statuses={statuses}
+          selectedHex={selectedHex}
+          hoveredHex={hoveredHex}
+          coloring={coloring}
+          filters={filters}
+          onSelect={(h) => {
+            onSelect(h);
+            if (h) setFollowingHex(h);
+          }}
+          onHover={onHover}
+          onMoveEnd={(b) => {
+            const next = clampBbox(b);
+            setBbox((cur) =>
+              cur.minLat === next.minLat &&
+              cur.maxLat === next.maxLat &&
+              cur.minLon === next.minLon &&
+              cur.maxLon === next.maxLon
+                ? cur
+                : next,
+            );
+          }}
+          followHex={following ? followingHex : null}
+        />
+      </ErrorBoundary>
 
       {/* Top-left: logo + status + search */}
       <div className="absolute top-3 left-3 right-3 md:right-auto flex items-start gap-3 z-20 pointer-events-none">
