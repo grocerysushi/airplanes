@@ -131,6 +131,12 @@ npm run build
 npm run start
 ```
 
+A `vercel.json` is included — it pins the deployment to Vercel's `iad1`
+(Washington DC) region and sets safe security headers on API and app routes.
+
+GitHub Actions (`.github/workflows/ci.yml`) runs `lint`, `tsc --noEmit`, and
+`next build` on every push/PR to `main` to catch regressions before deploy.
+
 ## License
 
 MIT.
