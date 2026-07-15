@@ -7,13 +7,7 @@ import { pastelMapStyle } from "./pastel-style";
 import type { Aircraft, AircraftFilters } from "@/lib/types";
 import type { ColoringMode } from "./coloring";
 import { colorForAircraft, COLORING_MODES } from "./coloring";
-import {
-  planeIconUrl,
-  planeSelectedUrl,
-  planeHoverUrl,
-  airportIconUrl,
-  locArrowUrlData,
-} from "./aircraft-icons";
+import { loadAllAircraftIcons } from "./aircraft-icons";
 import { AIRPORTS } from "@/lib/data/airports";
 import { clampBbox, bboxFromMapBounds } from "@/lib/geo";
 
@@ -71,14 +65,22 @@ export default function FlightMap(props: FlightMapProps) {
       "top-right",
     );
     map.on("load", async () => {
-      addAirportLayer(map);
-      addAirspaceLayer(map);
-      addAircraftLayer(map);
-      addLocArrow(map);
-      setReady(true);
-      const b = map.getBounds();
-      const bbox = bboxFromMapBounds(b);
-      props.onMoveEnd?.(clampBbox(bbox));
+      try {
+        const icons = await loadAllAircraftIcons();
+        addAirportLayer(map);
+        addAirspaceLayer(map);
+        addAircraftLayer(map, icons);
+        addLocArrow(map, icons);
+        setReady(true);
+        const b = map.getBounds();
+        const bbox = bboxFromMapBounds(b);
+        props.onMoveEnd?.(clampBbox(bbox));
+      } catch (err: any) {
+        // eslint-disable-next-line no-console
+        console.warn("Failed to load aircraft icons", err?.message ?? err);
+        // Still mark ready so UI doesn't hang — aircraft symbols will be omitted.
+        setReady(true);
+      }
     });
     map.on("error", (e: any) => {
       // Surface tile/style errors so silent map breakage is visible.
@@ -190,14 +192,15 @@ export default function FlightMap(props: FlightMapProps) {
     });
   }
 
-  function addAircraftLayer(map: MLMap) {
+  function addAircraftLayer(map: MLMap, icons: Record<string, { data: ImageData; width: number; height: number }>) {
     // Pre-render plane icons for each coloring bucket (compact set of colors).
-    ICON_COLORS.forEach((color) => {
-      map.addImage(`plane-${color.id}`, imageFromSvg(planeIconUrl(color.hex, 22)) as any, { sdf: false });
-      map.addImage(`plane-sel-${color.id}`, imageFromSvg(planeSelectedUrl()) as any, { sdf: false });
-      map.addImage(`plane-hov-${color.id}`, imageFromSvg(planeHoverUrl()) as any, { sdf: false });
+    Object.entries(icons).forEach(([name, img]) => {
+      try {
+        map.addImage(name, { width: img.width, height: img.height, data: new Uint8Array(img.data.data) }, { sdf: false });
+      } catch (e) {
+        // skip individual image failures
+      }
     });
-    map.addImage("plane-base", imageFromSvg(planeIconUrl("#A7B8C9")) as any, { sdf: false });
 
     map.addSource(SOURCE_ID, {
       type: "geojson",
@@ -307,12 +310,21 @@ export default function FlightMap(props: FlightMapProps) {
     map.on("mouseleave", AIRPORT_LAYER, () => (map.getCanvas().style.cursor = ""));
   }
 
-  function addLocArrow(map: MLMap) {
+  function addLocArrow(map: MLMap, icons: Record<string, { data: ImageData; width: number; height: number }>) {
     map.addSource(LOC_LAYER, {
       type: "geojson",
       data: { type: "FeatureCollection", features: [] },
     });
-    map.addImage("loc-arrow-img", imageFromSvg(locArrowUrlData()) as any);
+    const loc = icons["loc-arrow-img"];
+    if (loc) {
+      try {
+        if (!map.hasImage("loc-arrow-img")) {
+          map.addImage("loc-arrow-img", { width: loc.width, height: loc.height, data: new Uint8Array(loc.data.data) }, { sdf: false });
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
     map.addLayer({
       id: LOC_LAYER,
       source: LOC_LAYER,
@@ -368,26 +380,5 @@ export default function FlightMap(props: FlightMapProps) {
     <div ref={containerRef} className="absolute inset-0" aria-label="Live flight map" />
   );
 }
-
-// ICON palette (used to pre-render at startup)
-const ICON_COLORS = [
-  { id: "base", hex: "#A7B8C9" },
-  { id: "yellow", hex: "#F4C95D" },
-  { id: "coral", hex: "#EF8E7D" },
-  { id: "green", hex: "#8CC7A1" },
-  { id: "blue", hex: "#78AFC8" },
-  { id: "lavender", hex: "#B8A7D9" },
-  { id: "orange", hex: "#E6A15C" },
-  { id: "danger", hex: "#D96C6C" },
-];
-
-// Renders an SVG data URL into an ImageBitmap HTMLImageElement usable by maplibre.
-export function imageFromSvg(dataUrl: string): HTMLImageElement {
-  const img = new Image();
-  img.crossOrigin = "anonymous";
-  img.src = dataUrl;
-  return img;
-}
-
 export { maplibregl as maplibre };
-export { ICON_COLORS };
+

@@ -6,6 +6,7 @@ export const metadata: Metadata = {
   description:
     "Pastel Radar is a calm, playful global flight tracker. Live aircraft from Airplanes.live and ADSB.fi, enriched by ADSBDB.",
   manifest: "/manifest.webmanifest",
+  icons: { icon: "/favicon.svg" },
 };
 
 export const viewport: Viewport = {
