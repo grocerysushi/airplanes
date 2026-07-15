@@ -80,6 +80,12 @@ export default function FlightMap(props: FlightMapProps) {
       const bbox = bboxFromMapBounds(b);
       props.onMoveEnd?.(clampBbox(bbox));
     });
+    map.on("error", (e: any) => {
+      // Surface tile/style errors so silent map breakage is visible.
+      // eslint-disable-next-line no-console
+      console.warn("[map error]", e?.error?.message ?? e);
+      window.dispatchEvent(new CustomEvent("map:error", { detail: e?.error?.message ?? "map error" }));
+    });
     map.on("moveend", () => {
       const b = map.getBounds();
       const bbox = bboxFromMapBounds(b);
